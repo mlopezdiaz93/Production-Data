@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 Server-side fetcher — runs in GitHub Actions (or locally).
 Pulls Elexon (GB), EIA (US), ENTSO-E (DK/DE/NL zone context), converts physical
