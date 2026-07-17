@@ -1,0 +1,47 @@
+name: Refresh production data
+
+on:
+  schedule:
+    - cron: "0 6 * * *"        # daily 06:00 UTC (grid settlement is a few days in arrears)
+  workflow_dispatch:            # manual "Run workflow" button
+    inputs:
+      start:
+        description: "Start date (YYYY-MM-DD)"
+        required: false
+        default: "2021-01-01"
+
+permissions:
+  contents: write               # allow the action to commit the refreshed JSON
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch grid data and rebuild production.json
+        env:
+          EIA_KEY: ${{ secrets.EIA_KEY }}
+          ENTSOE_TOKEN: ${{ secrets.ENTSOE_TOKEN }}
+        run: |
+          python3 fetch_data.py --start "${{ github.event.inputs.start || '2021-01-01' }}"
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data/production.json
+          if git diff --staged --quiet; then
+            echo "No change."
+          else
+            git commit -m "data: refresh production.json ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          fi
